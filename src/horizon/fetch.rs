@@ -45,9 +45,9 @@ pub enum FetchError {
     JsonParseError,
     #[error("Invalid sequence number")]
     InvalidSequenceNumber,
-    #[error("Failed to parse integer")]
+    #[error("Failed to parse integer: {0}")]
     ParseIntError(ParseIntError),
-    #[error("Failed to parse float")]
+    #[error("Failed to parse float: {0}")]
     ParseFloatError(ParseFloatError),
     #[error("Account required memo {0:?}")]
     AccountRequiredMemo(AccountId),
