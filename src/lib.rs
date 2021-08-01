@@ -43,6 +43,7 @@ pub use xdr::{
         TransactionEnvelope, TrustLineFlags,
     },
     xdr_codec::XdrCodec,
+    streams::DecodeError,
 };
 
 pub use amount::*;

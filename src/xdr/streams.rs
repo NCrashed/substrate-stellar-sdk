@@ -4,19 +4,21 @@ use core::convert::{AsRef, TryInto};
 use core::iter;
 
 use sp_std::vec::Vec;
+use thiserror::Error;
 
 fn extend_to_multiple_of_4(value: usize) -> usize {
     (value + 3) & !3
 }
 
 /// An error type for decoding XDR data
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum DecodeError {
     /// The XDR data ends too early.
     ///
     /// The decoder expects more bytes to decode the data successfully
     /// The actual length and the expected length are given by `actual_length` and
     /// `expected_length`
+    #[error("Sudden end of data. Actual lenght is {actual_length} but expected {expected_length}")]
     SuddenEnd {
         actual_length: usize,
         expected_length: usize,
@@ -26,17 +28,20 @@ pub enum DecodeError {
     ///
     /// The XDR is self delimiting and would end earlier than the length of the provided
     /// binary data. The number of remaining bytes is given by `remaining_no_of_bytes`
+    #[error("The XDR is self delimiting and would end earlier than the length of the provided binary data. The number of remaining bytes is {remaining_no_of_bytes}")]
     TypeEndsTooEarly { remaining_no_of_bytes: isize },
 
     /// The XDR contains an invalid boolean
     ///
     /// The boolean is neither encoded as 0 or 1. The value found is given by `found_integer`.
+    #[error("The boolean is neither encoded as 0 or 1. The value found is given by {found_integer} at position {at_position}")]
     InvalidBoolean {
         found_integer: i32,
         at_position: usize,
     },
 
     /// The XDR contains a "Var Opaque" whose length exceeds the specified maximal length
+    #[error("The XDR contains a 'Var Opaque' whose length {actual_length} exceeds the specified maximal length {max_length} at position {at_position}")]
     VarOpaqueExceedsMaxLength {
         at_position: usize,
         max_length: i32,
@@ -44,6 +49,7 @@ pub enum DecodeError {
     },
 
     /// The XDR contains a string whose length exceeds the specified maximal length
+    #[error("The XDR contains a string whose length {actual_length} exceeds the specified maximal length {max_length} at position {at_position}")]
     StringExceedsMaxLength {
         at_position: usize,
         max_length: i32,
@@ -51,6 +57,7 @@ pub enum DecodeError {
     },
 
     /// The XDR contains a "Var Array" whose length exceeds the specified maximal length
+    #[error("The XDR contains a 'Var Array' whose length {actual_length} exceeds the specified maximal length {max_length} at position {at_position}")]
     VarArrayExceedsMaxLength {
         at_position: usize,
         max_length: i32,
@@ -60,14 +67,17 @@ pub enum DecodeError {
     /// The XDR contains an in invalid "Optional"
     ///
     /// The "optional" is neither encoded as 0 or 1. The value found is given by `has_code`.
+    #[error("The 'optional' is neither encoded as 0 or 1. The value found is {has_code} at position {at_position}.")]
     InvalidOptional { at_position: usize, has_code: u32 },
 
     /// The XDR contains an enum with an invalid discriminator
     ///
     /// The discriminator does not have one of the allowed values
+    #[error("The discriminator does not have one of the allowed values at position {at_position}.")]
     InvalidEnumDiscriminator { at_position: usize },
 
     /// The base64 encoding of the binary XDR is invalid
+    #[error("The base64 encoding of the binary XDR is invalid.")]
     InvalidBase64,
 }
 

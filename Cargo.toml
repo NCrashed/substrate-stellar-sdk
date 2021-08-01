@@ -22,6 +22,7 @@ serde_json = { version = '1.0.64', default-features = false, features = ["alloc"
 serde = { version = "1.0.100", default-features = false, features = ["derive", "alloc"], optional = true }
 hex = {version = "0.4", default-features = false}
 num-rational = {version = "0.4", default-features = false}
+thiserror = "1.0.26"
 
 
 [features]
