@@ -2,7 +2,7 @@ use sp_std::vec::Vec;
 use ureq::{Agent, AgentBuilder};
 use std::time::Duration;
 
-mod json_response_types;
+pub mod json_response_types;
 
 pub mod api_response_types;
 pub mod fetch;
