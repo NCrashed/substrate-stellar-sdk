@@ -6,6 +6,7 @@ use sp_runtime::offchain::{
     Duration, HttpError,
 };
 use sp_std::{str, vec, vec::Vec};
+use thiserror::Error; 
 
 use core::convert::TryInto;
 
@@ -28,17 +29,27 @@ impl From<ParseFloatError> for FetchError {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Error, Clone, Eq, PartialEq)]
 pub enum FetchError {
+    #[error("Timeout reached")]
     DeadlineReached,
+    #[error("IO error")]
     IoError,
+    #[error("Invalid request")]
     Invalid,
+    #[error("Unknown error")]
     Unknown,
+    #[error("Unexpected response status {status}")]
     UnexpectedResponseStatus { status: u16, body: Vec<u8> },
+    #[error("Failed to parse response JSON")]
     JsonParseError,
+    #[error("Invalid sequence number")]
     InvalidSequenceNumber,
+    #[error("Failed to parse integer")]
     ParseIntError(ParseIntError),
+    #[error("Failed to parse float")]
     ParseFloatError(ParseFloatError),
+    #[error("Account required memo {0:?}")]
     AccountRequiredMemo(AccountId),
 }
 
