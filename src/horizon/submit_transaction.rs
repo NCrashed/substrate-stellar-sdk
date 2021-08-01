@@ -1,8 +1,7 @@
 use serde_json::Value;
-use sp_runtime::offchain::http::Method;
 use sp_std::{vec, vec::Vec};
 
-use super::{FetchError, Horizon};
+use super::{FetchError, Horizon, fetch::Method};
 use crate::{
     types::{OperationBody, Uint256},
     utils::percent_encode::percent_encode,

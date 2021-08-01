@@ -1,12 +1,8 @@
 use core::num::{ParseFloatError, ParseIntError};
-use sp_io::offchain::timestamp;
-use sp_runtime::offchain::{
-    http::Request,
-    http::{Error, Method},
-    Duration, HttpError,
-};
 use sp_std::{str, vec, vec::Vec};
 use thiserror::Error; 
+use ureq::{Agent, AgentBuilder};
+use std::time::Duration;
 
 use core::convert::TryInto;
 
@@ -29,12 +25,14 @@ impl From<ParseFloatError> for FetchError {
     }
 }
 
-#[derive(Debug, Error, Clone, Eq, PartialEq)]
+#[derive(Debug, Error)]
 pub enum FetchError {
     #[error("Timeout reached")]
     DeadlineReached,
-    #[error("IO error")]
-    IoError,
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("Network error: {0}")]
+    NetworkError(#[from] ureq::Error),
     #[error("Invalid request")]
     Invalid,
     #[error("Unknown error")]
@@ -53,29 +51,9 @@ pub enum FetchError {
     AccountRequiredMemo(AccountId),
 }
 
-impl From<Error> for FetchError {
-    fn from(error: Error) -> Self {
-        match error {
-            Error::DeadlineReached => FetchError::DeadlineReached,
-            Error::IoError => FetchError::IoError,
-            Error::Unknown => FetchError::Unknown,
-        }
-    }
-}
-
 impl From<FetchError> for StellarSdkError {
     fn from(error: FetchError) -> Self {
         StellarSdkError::FetchError(error)
-    }
-}
-
-impl From<HttpError> for FetchError {
-    fn from(error: HttpError) -> Self {
-        match error {
-            HttpError::DeadlineReached => FetchError::DeadlineReached,
-            HttpError::IoError => FetchError::IoError,
-            HttpError::Invalid => FetchError::Invalid,
-        }
     }
 }
 
@@ -83,6 +61,18 @@ impl From<serde_json::Error> for FetchError {
     fn from(_error: serde_json::Error) -> Self {
         FetchError::JsonParseError
     }
+}
+
+pub enum Method {
+    Get, 
+    Post
+}
+
+fn read_body(response: ureq::Response) -> Result<Vec<u8>, std::io::Error> {
+    use std::io::Read;
+    let mut buf: Vec<u8> = vec![];
+    response.into_reader().read_to_end(&mut buf)?;
+    Ok(buf)
 }
 
 impl Horizon {
@@ -96,29 +86,23 @@ impl Horizon {
         for path_segment in path {
             url.extend_from_slice(path_segment);
         }
+        let final_url = str::from_utf8(&url).unwrap();
+        let requester = match method {
+            Method::Get => self.agent.get(final_url),
+            Method::Post => self.agent.post(final_url),
+        };
+        let response = match requester.call() {
+            Ok(response) => response, 
+            Err(ureq::Error::Status(code, response)) => {
+                return Err(FetchError::UnexpectedResponseStatus {
+                    status: code,
+                    body: read_body(response)?,
+                });
+            }
+            Err(e) => Err(e)?,
+        };
 
-        let request =
-            Request::<Vec<&'static [u8]>>::new(str::from_utf8(&url).unwrap()).method(method);
-        let timeout = timestamp().add(Duration::from_millis(timeout_milliseconds));
-        let pending = request
-            .add_header("X-Client-Name", HTTP_HEADER_CLIENT_NAME)
-            .add_header("X-Client-Version", HTTP_HEADER_CLIENT_VERSION)
-            .deadline(timeout)
-            .send()?;
-
-        let response = pending
-            .try_wait(timeout)
-            .map_err(|_| FetchError::DeadlineReached)?;
-        let response = response?;
-
-        if response.code != 200 {
-            return Err(FetchError::UnexpectedResponseStatus {
-                status: response.code,
-                body: response.body().collect(),
-            });
-        }
-
-        Ok(response.body().collect())
+        Ok(read_body(response)?)
     }
 
     /// Fetch the sequence number of an account

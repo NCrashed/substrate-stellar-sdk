@@ -5,7 +5,7 @@ use thiserror::Error;
 #[cfg(feature = "offchain")]
 use crate::horizon::FetchError;
 
-#[derive(Debug, Error, Clone, PartialEq)]
+#[derive(Debug, Error)]
 pub enum StellarSdkError {
     #[error("Invalide base32 encoding at {at_position}")]
     InvalidBase32Character {
