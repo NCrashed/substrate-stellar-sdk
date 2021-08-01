@@ -3,13 +3,15 @@
 use core::convert::TryInto;
 use sodalite::SIGN_LEN;
 use sp_std::{prelude::*, vec::Vec};
+use std::collections::{HashSet, HashMap};
+use std::str::from_utf8;
 
 use crate::{
     network::Network,
     secret_key::SecretKey,
     types::{
         DecoratedSignature, PublicKey, TransactionEnvelope, TransactionSignaturePayload,
-        TransactionSignaturePayloadTaggedTransaction,
+        TransactionSignaturePayloadTaggedTransaction, SignatureHint
     },
     utils::{
         base64,
@@ -111,6 +113,41 @@ impl TransactionEnvelope {
             })
             .map_err(|_| StellarSdkError::TooManySignatures)?;
 
+        Ok(())
+    }
+
+    fn hint_map(keys: &[PublicKey]) -> HashMap<SignatureHint, PublicKey> {
+        let mut m = HashMap::new();
+        for k in keys {
+            m.insert(k.get_signature_hint(), k.clone());
+        }
+        m
+    }
+
+    pub fn check_signatures(&mut self, network: &Network, keys: &[PublicKey]) -> Result<(), StellarSdkError> {
+        let hm = Self::hint_map(keys);
+        let signatures = self.get_signatures().get_vec().clone();
+        for signature in signatures.iter() {
+            match hm.get(&signature.hint) {
+                None => {
+                    // https://github.com/stellar/laboratory/blob/3bdacee4973f7000311f64b66dd16756897aa435/src/utilities/extrapolateFromXdr.js#L107
+                    let mut key_buff: [u8; 32] = [0; 32];
+                    key_buff[28..].copy_from_slice(&signature.hint);
+                    let partial_key = PublicKey::PublicKeyTypeEd25519(key_buff).to_encoding();
+                    let hint_encoded = partial_key[47 .. 47+5].to_vec();
+                    return Err(StellarSdkError::UnknownSignerKey(std::str::from_utf8(&hint_encoded).unwrap().to_owned()))
+                }
+                Some(pk) => self.check_signature(network, signature.signature.get_vec(), pk)?,
+            }   
+        }
+        Ok(())
+    }
+
+    fn check_signature(&self, network: &Network, signature: &[u8], public_key: &PublicKey) -> Result<(), StellarSdkError> {
+        let transaction_hash = self.get_hash(network);
+        if !public_key.verify_signature(transaction_hash, signature[..].try_into().unwrap()) {
+            return Err(StellarSdkError::PublicKeyCantVerify);
+        }
         Ok(())
     }
 

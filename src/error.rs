@@ -1,6 +1,7 @@
 use base64::DecodeError;
 use hex::FromHexError;
 use thiserror::Error;
+use crate::types::SignatureHint;
 
 #[cfg(feature = "offchain")]
 use crate::horizon::FetchError;
@@ -51,6 +52,10 @@ pub enum StellarSdkError {
     /// The transaction envelope already has the maximal number of signatures (20)
     #[error("The transaction envelope already has the maximal number of signatures (20)")]
     TooManySignatures,
+
+    /// The public key is not known as signer of the transaction
+    #[error("The public key {0} is not known as signer of the transaction")]
+    UnknownSignerKey(String),
 
     #[error("Asset code too long")]
     AssetCodeTooLong,
