@@ -124,21 +124,35 @@ impl TransactionEnvelope {
         m
     }
 
+    fn hint_encoding(hint: &SignatureHint) -> String {
+        // https://github.com/stellar/laboratory/blob/3bdacee4973f7000311f64b66dd16756897aa435/src/utilities/extrapolateFromXdr.js#L107
+        let mut key_buff: [u8; 32] = [0; 32];
+        key_buff[28..].copy_from_slice(hint);
+        let partial_key = PublicKey::PublicKeyTypeEd25519(key_buff).to_encoding();
+        let hint_encoded = partial_key[47 .. 47+5].to_vec();
+        std::str::from_utf8(&hint_encoded).unwrap().to_owned()
+    }
+
     pub fn check_signatures(&mut self, network: &Network, keys: &[PublicKey]) -> Result<(), StellarSdkError> {
         let hm = Self::hint_map(keys);
+        let mut seen: HashSet<SignatureHint> = HashSet::new();
         let signatures = self.get_signatures().get_vec().clone();
         for signature in signatures.iter() {
+            match seen.get(&signature.hint) {
+                None => (),
+                Some(_) => {
+                    let h = Self::hint_encoding(&signature.hint);
+                    return Err(StellarSdkError::DuplicatedSignature(h))
+                }
+            }
             match hm.get(&signature.hint) {
                 None => {
-                    // https://github.com/stellar/laboratory/blob/3bdacee4973f7000311f64b66dd16756897aa435/src/utilities/extrapolateFromXdr.js#L107
-                    let mut key_buff: [u8; 32] = [0; 32];
-                    key_buff[28..].copy_from_slice(&signature.hint);
-                    let partial_key = PublicKey::PublicKeyTypeEd25519(key_buff).to_encoding();
-                    let hint_encoded = partial_key[47 .. 47+5].to_vec();
-                    return Err(StellarSdkError::UnknownSignerKey(std::str::from_utf8(&hint_encoded).unwrap().to_owned()))
+                    let h = Self::hint_encoding(&signature.hint);
+                    return Err(StellarSdkError::UnknownSignerKey(h))
                 }
                 Some(pk) => self.check_signature(network, signature.signature.get_vec(), pk)?,
-            }   
+            }
+            seen.insert(signature.hint.clone());
         }
         Ok(())
     }

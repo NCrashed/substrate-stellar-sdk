@@ -53,6 +53,10 @@ pub enum StellarSdkError {
     #[error("The transaction envelope already has the maximal number of signatures (20)")]
     TooManySignatures,
 
+    /// The public key is seen twice or more within signatures
+    #[error("The public key {0} is seen twice or more within signatures")]
+    DuplicatedSignature(String),
+
     /// The public key is not known as signer of the transaction
     #[error("The public key {0} is not known as signer of the transaction")]
     UnknownSignerKey(String),
