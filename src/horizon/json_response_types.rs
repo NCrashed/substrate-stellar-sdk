@@ -123,6 +123,12 @@ pub struct FeeDistribution {
     pub p99: String,
 }
 
+#[derive(Deserialize, Debug, PartialEq, Eq)]
+pub struct TransactionInfo {
+    pub id: String,
+    pub successful: bool,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

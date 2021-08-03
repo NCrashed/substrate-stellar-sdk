@@ -6,6 +6,7 @@ use crate::{
     types::{OperationBody, Uint256},
     utils::percent_encode::percent_encode,
     AccountId, Memo, MuxedAccount, TransactionEnvelope, XdrCodec,
+    horizon::json_response_types::TransactionInfo,
 };
 
 // ACCOUNT_REQUIRES_MEMO is the base64 encoding of "1".
@@ -111,6 +112,20 @@ impl Horizon {
         let json = self.request(
             vec![b"/transactions?tx=", &percent_encode(envelope_base64)[..]],
             Method::Post,
+            timeout_milliseconds,
+        )?;
+
+        Ok(serde_json::from_slice(&json)?)
+    }
+
+    pub fn query_transaction(
+        &self, 
+        transaction_id: &[u8],
+        timeout_milliseconds: u64,
+    ) -> Result<TransactionInfo, FetchError> {
+        let json = self.request(
+            vec![b"/transactions/", &hex::encode(transaction_id).as_bytes()],
+            Method::Get,
             timeout_milliseconds,
         )?;
 
