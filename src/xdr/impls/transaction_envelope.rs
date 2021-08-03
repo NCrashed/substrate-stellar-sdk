@@ -124,7 +124,7 @@ impl TransactionEnvelope {
         m
     }
 
-    fn hint_encoding(hint: &SignatureHint) -> String {
+    pub fn hint_encoding(hint: &SignatureHint) -> String {
         // https://github.com/stellar/laboratory/blob/3bdacee4973f7000311f64b66dd16756897aa435/src/utilities/extrapolateFromXdr.js#L107
         let mut key_buff: [u8; 32] = [0; 32];
         key_buff[28..].copy_from_slice(hint);
